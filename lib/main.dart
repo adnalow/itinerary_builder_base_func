@@ -48,6 +48,8 @@ class InputBoxExampleState extends State<InputBoxExample> {
 
   late GenerativeModel model;  // Declare without initializing here
   String? generatedResponse;   // Variable to store and display the generated response
+  String? placeName;
+  String? description;
 
   @override
   void initState() {
@@ -60,6 +62,37 @@ class InputBoxExampleState extends State<InputBoxExample> {
       apiKey: apiKey,
     );
   }
+
+  void  sendRequest(String prompt) async {
+    try {
+      final content = [Content.text(prompt)];
+      final response = await model.generateContent(content);
+      
+      setState(() {
+        generatedResponse = response.text;  // Directly access the generated text
+        _extractNameAndDescription(generatedResponse!);
+      });
+      debugPrint(generatedResponse);
+    } catch (error) {
+      setState(() {
+        generatedResponse = "Error: $error";
+      });
+      debugPrint("Error: $error");
+    }
+  }
+
+  // Function to extract name and description
+  void _extractNameAndDescription(String response) {
+    final nameMatch = RegExp(r"Name:\s*\*\*(.*)\*\*").firstMatch(response);
+    final descriptionMatch = RegExp(r"Description:\s*(.*)").firstMatch(response);
+
+    setState(() {
+      // Remove ** from name if found
+      placeName = nameMatch?.group(1) ?? "Name not found";
+      description = descriptionMatch?.group(1) ?? "Description not found";
+    });
+  }
+
 
   var country;
   var city;
@@ -101,28 +134,19 @@ class InputBoxExampleState extends State<InputBoxExample> {
               country = _country.text;
               city = _city.text;
               preference = _preference.text;
-              promptFormat = "Give me one place in $country , $city city that is fitted in this description: $preference . Also give a 2-3 sentences description about the place.";
-
-              try {
-                final content = [Content.text(promptFormat)];
-                final response = await model.generateContent(content);
-                
-                setState(() {
-                  generatedResponse = response.text;  // Directly access the generated text
-                });
-                debugPrint(generatedResponse);
-              } catch (error) {
-                setState(() {
-                  generatedResponse = "Error: $error";
-                });
-                debugPrint("Error: $error");
-              }
+              promptFormat = "Give me one place in $country , $city that is fitted in this description: $preference . Use this format in giving my request: Name: {name of the place} Description: {2 sentences description of the place}";
+              sendRequest(promptFormat);
             },
             child: const Text('Submit'),
           ),
           const SizedBox(height: 20),
-          if (generatedResponse != null)
-            Text(generatedResponse!), // Display the generated response or error message
+          if (placeName != null && description != null) ...[
+            Text("Place Name: $placeName"),
+            const SizedBox(height: 10),
+            Text("Description: $description"),
+          ],
+          if (generatedResponse != null && (placeName == null || description == null))
+            Text(generatedResponse!), // Display the full response in case of parsing issues
         ],
       ),
     );
