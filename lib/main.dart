@@ -51,6 +51,11 @@ class InputBoxExampleState extends State<InputBoxExample> {
   String? placeName;
   String? description;
 
+  String? country;
+  String? city;
+  String? preference;
+  String promptFormat = "";
+
   @override
   void initState() {
     super.initState();
@@ -93,11 +98,6 @@ class InputBoxExampleState extends State<InputBoxExample> {
     });
   }
 
-
-  var country;
-  var city;
-  var preference;
-  var promptFormat;
 
   @override
   Widget build(BuildContext context) {
