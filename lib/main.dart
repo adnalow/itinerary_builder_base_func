@@ -1,5 +1,6 @@
+import 'package:csc_picker/csc_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:itineray_builder_base_func/displayChoice.dart';
 
 void main() {
   runApp(const MyApp());
@@ -29,75 +30,48 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       body: Column(
         children: [
-          InputBoxExample()
+          UserChoice(),
         ],
       ),
     );
   }
 }
 
-class InputBoxExample extends StatefulWidget {
+class UserChoice extends StatefulWidget {
   @override
-  InputBoxExampleState createState() => InputBoxExampleState();
+  UserChoiceState createState() => UserChoiceState();
 }
 
-class InputBoxExampleState extends State<InputBoxExample> {
-  final TextEditingController _country = TextEditingController();
-  final TextEditingController _city = TextEditingController();
-  final TextEditingController _preference = TextEditingController();
-
-  late GenerativeModel model;  // Declare without initializing here
-  String? generatedResponse;   // Variable to store and display the generated response
-  String? placeName;
-  String? description;
+class UserChoiceState extends State<UserChoice> {
+  final List<String> options = [
+    "Nature",
+    "Scenic",
+    "Water Activities",
+    "Beach",
+    "Cultural",
+    "Relaxation",
+    "Nightlife",
+    "Shopping",
+    "Family Friendly",
+    "Sports",
+    "Hiking",
+    "Luxury",
+    "Food and Drink",
+    "Mountain",
+    "Wildlife",
+    "Thrill",
+    "Historical",
+    "Budget",
+    "Festivals",
+    "Romantic"
+  ];
+  final List<String> selectedOptions = []; // Store selected options here
 
   String? country;
-  String? city;
+  String? province = "";
+  String? municipality = "";
   String? preference;
   String promptFormat = "";
-
-  @override
-  void initState() {
-    super.initState();
-
-    // Initialize the model in initState
-    const apiKey = 'AIzaSyBcuuGqcpZbi_o6uZB8TODmBUqXaQzy-14';
-    model = GenerativeModel(
-      model: 'gemini-1.5-flash-latest',
-      apiKey: apiKey,
-    );
-  }
-
-  void  sendRequest(String prompt) async {
-    try {
-      final content = [Content.text(prompt)];
-      final response = await model.generateContent(content);
-      
-      setState(() {
-        generatedResponse = response.text;  // Directly access the generated text
-        _extractNameAndDescription(generatedResponse!);
-      });
-      debugPrint(generatedResponse);
-    } catch (error) {
-      setState(() {
-        generatedResponse = "Error: $error";
-      });
-      debugPrint("Error: $error");
-    }
-  }
-
-  // Function to extract name and description
-  void _extractNameAndDescription(String response) {
-    final nameMatch = RegExp(r"Name:\s*\*\*(.*)\*\*").firstMatch(response);
-    final descriptionMatch = RegExp(r"Description:\s*(.*)").firstMatch(response);
-
-    setState(() {
-      // Remove ** from name if found
-      placeName = nameMatch?.group(1) ?? "Name not found";
-      description = descriptionMatch?.group(1) ?? "Description not found";
-    });
-  }
-
 
   @override
   Widget build(BuildContext context) {
@@ -105,48 +79,95 @@ class InputBoxExampleState extends State<InputBoxExample> {
       padding: const EdgeInsets.all(16.0),
       child: Column(
         children: [
-          TextField(
-            controller: _country,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              labelText: 'Enter Country',
+          CSCPicker(
+            layout: Layout.vertical,
+            flagState: CountryFlag.SHOW_IN_DROP_DOWN_ONLY,
+            stateDropdownLabel: "Province",
+            cityDropdownLabel: "Municipality",
+            dropdownDecoration: BoxDecoration(
+              borderRadius: const BorderRadius.all(Radius.circular(5)),
+              color: Colors.white,
+              border: Border.all(color: Colors.grey.shade300, width: 1),
             ),
+            onCountryChanged: (value) {
+              setState(() {
+                country = value;
+              });
+            },
+            onStateChanged: (value) {
+              setState(() {
+                province = value;
+              });
+            },
+            onCityChanged: (value) {
+              setState(() {
+                municipality = value; // Update selected municipality
+              });
+            },
           ),
           const SizedBox(height: 20),
-          TextField(
-            controller: _city,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              labelText: 'Enter City/Municipality',
-            ),
+          Wrap(
+            children: options.map((option) {
+              final isSelected = selectedOptions.contains(option);
+              return Container(
+                margin: const EdgeInsets.all(5),
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      if (isSelected) {
+                        selectedOptions.remove(option);
+                      } else {
+                        selectedOptions.add(option);
+                      }
+                      // Update preference with selected options
+                      preference = selectedOptions.join(", ");
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    decoration: BoxDecoration(
+                      color: isSelected ? const Color(0xFF48B89F) : const Color(0xFFFFFFFF),
+                      borderRadius: BorderRadius.circular(20.0),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2), // Shadow color
+                          offset: const Offset(2, 2), // Offset of the shadow
+                          blurRadius: 4.0, // Blur radius
+                          spreadRadius: 1.0, // How much the shadow spreads
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      option,
+                      style: TextStyle(color: isSelected ? Colors.white : Colors.black),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
           ),
-          const SizedBox(height: 20),
-          TextField(
-            controller: _preference,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              labelText: 'Enter Preference',
-            ),
-          ),
-          const SizedBox(height: 20),
           ElevatedButton(
             onPressed: () async {
-              country = _country.text;
-              city = _city.text;
-              preference = _preference.text;
-              promptFormat = "Give me one place in $country , $city that is fitted in this description: $preference . Use this format in giving my request: Name: {name of the place} Description: {2 sentences description of the place}";
-              sendRequest(promptFormat);
+              // Check if municipality is empty and set the prompt accordingly
+              if (municipality == null || municipality!.isEmpty) {
+                promptFormat =
+                    "Give me one place in $country, in any part of province of $province that is fitted in this description: $preference. Use this format in giving my request: Name: {name of the place} Description: {2 sentences description of the place}.";
+              } else {
+                promptFormat =
+                    "Give me one place in $country, province of $province, municipality of $municipality that is fitted in this description: $preference. Use this format in giving my request: Name: {name of the place} Description: {2 sentences description of the place}.";
+              }
+
+              // Navigate to the DisplayChoice screen with the promptFormat
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => DisplayChoice(promptFormat: promptFormat),
+                ),
+              );
             },
-            child: const Text('Submit'),
+            child: const Text('Find me a destination'),
           ),
           const SizedBox(height: 20),
-          if (placeName != null && description != null) ...[
-            Text("Place Name: $placeName"),
-            const SizedBox(height: 10),
-            Text("Description: $description"),
-          ],
-          if (generatedResponse != null && (placeName == null || description == null))
-            Text(generatedResponse!), // Display the full response in case of parsing issues
         ],
       ),
     );
